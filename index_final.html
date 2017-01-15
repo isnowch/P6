@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <script src="http://dimplejs.org/dist/dimple.v2.0.0.min.js"></script>
+
+    <style>
+
+      h2{
+        margin-left: 100
+        font-family:"幼圆";
+        font-weight:bold;
+        font-size: 30px;
+      }
+
+      #menu{
+        font-family:"幼圆"
+        margin-left: 150px;
+        margin-right: 75px;
+        float:left;
+      }
+
+      #freq{
+        font-family:"幼圆"
+        margin-left: 10px;
+
+        float:left;
+      }
+
+      circle{
+        r:2.5px;
+      }
+
+      text{
+        font-size: 25px;
+      }
+      #desc{
+        font-family:"幼圆";
+        font-size: 15px;
+      }
+    </style>
+    <script>
+
+        function draw(data) {
+            PMData = data;
+
+            //创建svg
+            "use strict";
+            var margin = 75,
+                width = 1280 - margin,
+                height = 600 - margin;
+            var svg = d3.select("body")
+              .append("svg")
+                .attr("width", width + margin)
+                .attr("height", height + margin)
+              .append('g')
+                  .attr('class','chart');
+
+            //使用Dimple.js 创建图表
+            var myChart = new dimple.chart(svg, data);
+            var x = myChart.addTimeAxis("x", "Year");
+            var y = myChart.addMeasureAxis("y", "Value");
+
+            x.dateParseFormat = "%Y";
+            x.tickFormat = "%Y";
+            x.timePeriod = d3.time.years;
+            x.timeInterval = 1;
+            x.title = "日期";
+            y.title =  "PM 2.5 平均浓度（μg/m³)";
+            var s1 = myChart.addSeries("Site", dimple.plot.line);
+            var s2 = myChart.addSeries("Site", dimple.plot.scatter);
+            s1.aggregate = dimple.aggregateMethod.avg;
+            s2.aggregate = dimple.aggregateMethod.avg;
+
+            // 添加图例
+            var myLegend = myChart.addLegend(margin+100, margin-52, width, 120, "left");
+            myLegend.fontSize = '15px';
+            myChart.draw();
+            myChart.legends = [];
+            svg.selectAll('title_text')
+               .data(['点击图例显示/隐藏数据:'])
+               .enter()
+               .append('text')
+               .attr('x', 0)
+               .attr('y', margin-45)
+               .style('font-family', '幼圆')
+               .style('font-size', '15px')
+               .style('color', 'Black')
+               .text(function (d) {
+                   return d;
+               });
+            var filterValues = dimple.getUniqueValues(data, 'Site');
+            myLegend.shapes
+                    .selectAll('rect')
+
+                  // 为图例设置点击事件
+                    .on('click', function (e) {
+                        var hide = false;
+                        var newFilters = [];
+                        filterValues.forEach(function (f) {
+                            if (f === e.aggField.slice(-1)[0]) {
+                                hide = true;
+                            } else {
+                                newFilters.push(f);
+                            }
+                        });
+
+                  // 隐藏或显示数据
+                        if (hide) {
+                            d3.select(this)
+                              .style('opacity', 0.2);
+                        } else {
+                            newFilters.push(e.aggField.slice(-1)[0]);
+                            d3.select(this)
+                              .style('opacity', 0.8);
+                        }
+                        filterValues = newFilters;
+                  // 使用newFilters过滤数据
+                        myChart.data = dimple.filterData(data, 'Site', filterValues);
+                        myChart.draw(800);
+                    });
+
+            //为“选择数据类型”选单设置事件
+            var menulist = [["Value", "PM 2.5 平均浓度（μg/m³)"],
+                            ["isGood", "优良天数比例(%)"],
+                            ["isHeavilyPolluted","重度及严重污染天数比例(%)"]]
+            var menu = d3.select('#menu select')
+            .on('change',function(d){
+              y.measure = menulist[menu.property('value')][0];
+              y.title = menulist[menu.property('value')][1]
+              myChart.draw(800);
+            });
+
+            //为“选择数据频率”选单设置事件
+            var freqlist = [["Year", "%Y","%Y", d3.time.years, 1],
+                            ["Month", "%Y%m","%Y/%m", d3.time.months, 4]]
+            var freq = d3.select('#freq select')
+            .on('change',function(d){
+              x.timeField = freqlist[freq.property('value')][0];
+              x.dateParseFormat = freqlist[freq.property('value')][1];
+              x.tickFormat = freqlist[freq.property('value')][2];
+              x.timePeriod = freqlist[freq.property('value')][3];
+              x.timeInterval = freqlist[freq.property('value')][4];
+              myChart.draw(800);
+            });
+        };
+    </script>
+  </head>
+<body>
+  <h2>2012——2016中国五座主要城市雾霾变化情况</h2>
+  <p id="desc">数据来源：The U.S. Department of State air quality data<br>数据显示：空气污染程度总体呈现下降趋势，北京、上海、广州、成都四城自2013年起空气质量优良天数所占比例增加，重度及以上污染天数比例降低。其中，重污染天气主要发生在冬季。北京、成都整体空气污染情况比较严重，而广州、上海空气质量相对较好。</p>
+	<div id="menu">选择数据类型：
+    <select>
+      <option value=0 selected = "selected">PM2.5</option>
+      <option value=1 >优良天数比例</option>
+      <option value=2>重度及严重污染天数比例</option>
+    </select>
+  </div>
+
+  <div id="freq">选择数据频率：
+    <select>
+      <option value=0 selected = "selected">逐年</option>
+      <option value=1>逐月</option>
+    </select>
+  </div>
+
+
+  <script type="text/javascript">
+  //使用D3.js加载数据文件
+    var PMData
+    d3.csv("daily_pm2.5.csv", function(d){
+      d['isGood']= +(d['Value']<75)*100;
+      d['isHeavilyPolluted']= +(d['Value']>=150)*100;
+      return d;
+    }, draw);
+  </script>
+</body>
+</html>
